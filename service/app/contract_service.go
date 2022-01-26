@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -862,97 +863,25 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 		return nil // commit
 	}
 
-	contractRef := AddressLocation{Name: cpc.Name, Address: cpc.Address}
-
+	wg := sync.WaitGroup{}
 	for _, eventName := range eventNames {
-		arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
-			Type:        cpc.EventName(eventName),
-			StartHeight: begin,
-			EndHeight:   end,
-		})
-		if err != nil {
-			return err // rollback
-		}
+		evName := eventName
+		wg.Add(1)
 
-		for _, be := range arr {
-			for _, e := range be.Events {
-				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
-
-				eventLogger.Debug("Handling event")
-
-				evtValueMap := flow_helpers.EventValuesToMap(e)
-
-				packFlowIDCadence, ok := evtValueMap["id"]
-				if !ok {
-					err := fmt.Errorf("could not read 'id' from event %s", e)
-					return err // rollback
-				}
-
-				packFlowID, err := common.FlowIDFromCadence(packFlowIDCadence)
-				if err != nil {
-					return err // rollback
-				}
-
-				pack, err := GetPackByContractAndFlowID(db, contractRef, packFlowID)
-				if err != nil {
-					return err // rollback
-				}
-
-				distribution, err := GetDistributionSmall(db, pack.DistributionID)
-				if err != nil {
-					return err // rollback
-				}
-
-				eventLogger = eventLogger.WithFields(log.Fields{
-					"distID":     distribution.ID,
-					"distFlowID": distribution.FlowID,
-					"packID":     pack.ID,
-					"packFlowID": pack.FlowID,
-				})
-
-				eventLogger.Info("handling event...")
-
-				handler := EventHandler{
-					db:          db,
-					flowClient:  svc.flowClient,
-					eventLogger: eventLogger,
-				}
-
-				switch eventName {
-				// -- REVEAL_REQUEST, Owner has requested to reveal a pack ------------
-				case REVEAL_REQUEST:
-					if err := handler.HandleRevealRequestEvent(ctx, &e, pack, distribution); err != nil {
-						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
-						continue
-					}
-
-				// -- REVEALED, Pack has been revealed onchain ------------------------
-				case REVEALED:
-					// Make sure the pack is in correct state
-					if err := handler.HandleRevealedEvent(ctx, &e, pack, distribution); err != nil {
-						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
-						continue
-					}
-
-				// -- OPEN_REQUEST, Owner has requested to open a pack ----------------
-				case OPEN_REQUEST:
-					if err := handler.HandleOpenRequestEvent(ctx, &e, pack, distribution); err != nil {
-						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
-						continue
-					}
-
-				// -- OPENED, Pack has been opened onchain ----------------------------
-				case OPENED:
-					if err := handler.HandleOpenedEvent(ctx, &e, pack, distribution); err != nil {
-						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
-						continue
-					}
-				}
-
-				eventLogger.Trace("Handling event complete")
+		go func(evName string, dbx *gorm.DB) {
+			handler := EventHandler{
+				db:          dbx,
+				flowClient:  svc.flowClient,
+				eventLogger: logger,
 			}
-		}
+			if err := handler.PollByEventName(ctx, &wg, cpc, evName, begin, end); err != nil {
+				logger.Warn(err)
+				// TODO: Need to rollback tx here
+			}
+		}(evName, db)
 	}
+
+	wg.Wait()
 
 	cpc.StartAtBlock = end
 

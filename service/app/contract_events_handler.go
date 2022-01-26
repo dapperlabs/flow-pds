@@ -3,7 +3,10 @@ package app
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
+	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	"github.com/google/uuid"
@@ -202,5 +205,104 @@ func (ev *EventHandler) HandleOpenedEvent(ctx context.Context, event *flow.Event
 	if err := UpdatePack(ev.db, pack); err != nil {
 		return err // rollback
 	}
+	return nil
+}
+
+func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup, cpc *CirculatingPackContract, eventName string, begin uint64, end uint64) error {
+	defer wg.Done()
+
+	arr, err := ev.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+		Type:        cpc.EventName(eventName),
+		StartHeight: begin,
+		EndHeight:   end,
+	})
+
+	if err != nil {
+		return fmt.Errorf("error querying events for height range. err=%w", err)
+	}
+
+	contractRef := AddressLocation{Name: cpc.Name, Address: cpc.Address}
+
+	for _, be := range arr {
+		for _, e := range be.Events {
+			eventLogger := ev.eventLogger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
+
+			eventLogger.Debug("Handling event")
+
+			evtValueMap := flow_helpers.EventValuesToMap(e)
+
+			packFlowIDCadence, ok := evtValueMap["id"]
+			if !ok {
+				return fmt.Errorf("could not read 'id' from event %s", e)
+			}
+
+			packFlowID, err := common.FlowIDFromCadence(packFlowIDCadence)
+			if err != nil {
+				return err // rollback
+			}
+
+			time.Sleep(1 * time.Second)
+
+			pack, err := GetPackByContractAndFlowID(ev.db, contractRef, packFlowID)
+			if err != nil {
+				return fmt.Errorf("error retrieving pack from db err=%w", err) // rollback
+			}
+
+			distribution, err := GetDistributionSmall(ev.db, pack.DistributionID)
+			if err != nil {
+				return fmt.Errorf("error retrieving distribution from db err=%w", err)
+			}
+
+			eventLogger = eventLogger.WithFields(log.Fields{
+				"distID":     distribution.ID,
+				"distFlowID": distribution.FlowID,
+				"packID":     pack.ID,
+				"packFlowID": pack.FlowID,
+			})
+
+			eventLogger.Info("handling event...")
+
+			if err := ev.HandleEvent(ctx, eventName, &e, pack, distribution); err != nil {
+				eventLogger.Warnf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error())
+				continue
+			}
+
+			eventLogger.Trace("Handling event complete")
+		}
+	}
+
+	return nil
+}
+
+func (ev *EventHandler) HandleEvent(ctx context.Context, eventName string, event *flow.Event, pack *Pack, distribution *Distribution) error {
+	switch eventName {
+	// -- REVEAL_REQUEST, Owner has requested to reveal a pack ------------
+	case REVEAL_REQUEST:
+		if err := ev.HandleRevealRequestEvent(ctx, event, pack, distribution); err != nil {
+			return err
+		}
+
+	// -- REVEALED, Pack has been revealed onchain ------------------------
+	case REVEALED:
+		// Make sure the pack is in correct state
+		if err := ev.HandleRevealedEvent(ctx, event, pack, distribution); err != nil {
+			return err
+		}
+
+	// -- OPEN_REQUEST, Owner has requested to open a pack ----------------
+	case OPEN_REQUEST:
+		if err := ev.HandleOpenRequestEvent(ctx, event, pack, distribution); err != nil {
+			return err
+		}
+
+	// -- OPENED, Pack has been opened onchain ----------------------------
+	case OPENED:
+		if err := ev.HandleOpenedEvent(ctx, event, pack, distribution); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsupported event: %s", eventName)
+	}
+
 	return nil
 }
