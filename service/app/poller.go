@@ -261,20 +261,19 @@ func handleComplete(ctx context.Context, app *App) error {
 }
 
 func pollCirculatingPackContractEvents(ctx context.Context, app *App) error {
-	return app.db.Transaction(func(tx *gorm.DB) error {
-		cc, err := listCirculatingPackContracts(tx)
-		if err != nil {
+
+	cc, err := listCirculatingPackContracts(app.db)
+	if err != nil {
+		return err
+	}
+
+	for _, c := range cc {
+		if err := app.service.UpdateCirculatingPackContract(ctx, app.db, &c); err != nil {
 			return err
 		}
+	}
 
-		for _, c := range cc {
-			if err := app.service.UpdateCirculatingPackContract(ctx, tx, &c); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
+	return nil
 }
 
 // handleSendableTransactions sends all transactions which are sendable (state is init or retry)

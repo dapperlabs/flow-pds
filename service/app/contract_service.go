@@ -868,17 +868,24 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 		evName := eventName
 		wg.Add(1)
 
-		go func(evName string, dbx *gorm.DB) {
-			handler := EventHandler{
-				db:          dbx,
-				flowClient:  svc.flowClient,
-				eventLogger: logger,
-			}
-			if err := handler.PollByEventName(ctx, &wg, cpc, evName, begin, end); err != nil {
+		go func(ctx context.Context, dbx *gorm.DB, wg *sync.WaitGroup, cpc *CirculatingPackContract, evName string, begin uint64, end uint64) {
+
+			if err := dbx.Transaction(func(tx *gorm.DB) error {
+				handler := EventHandler{
+					db:         dbx,
+					flowClient: svc.flowClient,
+					eventLogger: logger.WithFields(log.Fields{
+						"eventName": evName,
+					}),
+				}
+				if err := handler.PollByEventName(ctx, wg, cpc, evName, begin, end); err != nil {
+					return err
+				}
+				return nil
+			}); err != nil {
 				logger.Warn(err)
-				// TODO: Need to rollback tx here
 			}
-		}(evName, db)
+		}(ctx, db, &wg, cpc, evName, begin, end)
 	}
 
 	wg.Wait()

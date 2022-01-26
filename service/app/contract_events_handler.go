@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
@@ -240,8 +239,6 @@ func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup,
 			if err != nil {
 				return err // rollback
 			}
-
-			time.Sleep(1 * time.Second)
 
 			pack, err := GetPackByContractAndFlowID(ev.db, contractRef, packFlowID)
 			if err != nil {
