@@ -374,10 +374,22 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 		StartAtBlock: latestBlockHeader.Height - 1,
 	}
 
+	cpcCursor := CirculatingPackContractBlockCursor{
+		EventName: AddressLocation{
+			Name:    dist.PackTemplate.PackReference.Name,
+			Address: dist.PackTemplate.PackReference.Address,
+		}.String(),
+		StartAtBlock: latestBlockHeader.Height - 1,
+	}
+
 	// Try to find an existing one (CirculatingPackContract)
 	if existing, err := GetCirculatingPackContract(db, cpc.Name, cpc.Address); err != nil {
 		// Insert the newly initialized if not found
 		if err := InsertCirculatingPackContract(db, &cpc); err != nil {
+			return err // rollback
+		}
+
+		if err := InsertCirculatingPackContractBlockCursor(db, &cpcCursor); err != nil {
 			return err // rollback
 		}
 	} else { // err == nil, existing found
@@ -869,7 +881,6 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 		wg.Add(1)
 
 		go func(ctx context.Context, dbx *gorm.DB, wg *sync.WaitGroup, cpc *CirculatingPackContract, evName string, begin uint64, end uint64) {
-
 			if err := dbx.Transaction(func(tx *gorm.DB) error {
 				handler := EventHandler{
 					db:         dbx,
@@ -878,7 +889,15 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 						"eventName": evName,
 					}),
 				}
-				if err := handler.PollByEventName(ctx, wg, cpc, evName, begin, end); err != nil {
+
+				eventName := AddressLocation{Address: cpc.Address, Name: cpc.Name}
+
+				cpcCursor, err := getCirculatingPackContractBlockCursorByEventName(tx, eventName)
+				if err != nil {
+					return err
+				}
+
+				if err := handler.PollByEventName(ctx, wg, cpc, cpcCursor, evName, begin, end); err != nil {
 					return err
 				}
 				return nil

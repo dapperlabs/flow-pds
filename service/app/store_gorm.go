@@ -20,6 +20,9 @@ func Migrate(db *gorm.DB) error {
 	if err := db.AutoMigrate(&CirculatingPackContract{}); err != nil {
 		return err
 	}
+	if err := db.AutoMigrate(&CirculatingPackContractBlockCursor{}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -204,8 +207,18 @@ func InsertCirculatingPackContract(db *gorm.DB, d *CirculatingPackContract) erro
 	return db.Omit(clause.Associations).Create(d).Error
 }
 
+// Insert CirculatingPackContractBlockCursor
+func InsertCirculatingPackContractBlockCursor(db *gorm.DB, d *CirculatingPackContractBlockCursor) error {
+	return db.Omit(clause.Associations).Create(d).Error
+}
+
 // Update CirculatingPackContracts
 func UpdateCirculatingPackContract(db *gorm.DB, d *CirculatingPackContract) error {
+	return db.Omit(clause.Associations).Save(d).Error
+}
+
+// Update CirculatingPackContractBlockCursor
+func UpdateCirculatingPackContractBlockCursor(db *gorm.DB, d *CirculatingPackContractBlockCursor) error {
 	return db.Omit(clause.Associations).Save(d).Error
 }
 

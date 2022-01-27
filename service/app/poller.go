@@ -149,6 +149,13 @@ func listCirculatingPackContracts(db *gorm.DB) ([]CirculatingPackContract, error
 		Find(&list).Error
 }
 
+func getCirculatingPackContractBlockCursorByEventName(db *gorm.DB, eventName AddressLocation) (*CirculatingPackContractBlockCursor, error) {
+	c := CirculatingPackContractBlockCursor{}
+	err := db.Where(&CirculatingPackContractBlockCursor{EventName: eventName.String()}).
+		First(&c).Error
+	return &c, err
+}
+
 func handleResolved(ctx context.Context, app *App) error {
 	return app.db.Transaction(func(tx *gorm.DB) error {
 		resolved, err := listDistributionsByState(tx, common.DistributionStateResolved)

@@ -207,7 +207,7 @@ func (ev *EventHandler) HandleOpenedEvent(ctx context.Context, event *flow.Event
 	return nil
 }
 
-func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup, cpc *CirculatingPackContract, eventName string, begin uint64, end uint64) error {
+func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup, cpc *CirculatingPackContract, cpcCursor *CirculatingPackContractBlockCursor, eventName string, begin uint64, end uint64) error {
 	defer wg.Done()
 
 	arr, err := ev.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
@@ -219,8 +219,6 @@ func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup,
 	if err != nil {
 		return fmt.Errorf("error querying events for height range. err=%w", err)
 	}
-
-	contractRef := AddressLocation{Name: cpc.Name, Address: cpc.Address}
 
 	for _, be := range arr {
 		for _, e := range be.Events {
@@ -240,7 +238,11 @@ func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup,
 				return err // rollback
 			}
 
-			pack, err := GetPackByContractAndFlowID(ev.db, contractRef, packFlowID)
+			addressLocation := AddressLocation{
+				Name:    cpc.Name,
+				Address: cpc.Address,
+			}
+			pack, err := GetPackByContractAndFlowID(ev.db, addressLocation, packFlowID)
 			if err != nil {
 				return fmt.Errorf("error retrieving pack from db err=%w", err) // rollback
 			}
@@ -266,6 +268,13 @@ func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup,
 
 			eventLogger.Trace("Handling event complete")
 		}
+	}
+
+	cpcCursor.StartAtBlock = end
+
+	// Update the CirculatingPackContract in database
+	if err := UpdateCirculatingPackContractBlockCursor(ev.db, cpcCursor); err != nil {
+		return err // rollback
 	}
 
 	return nil
