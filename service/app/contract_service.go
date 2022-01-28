@@ -14,6 +14,7 @@ import (
 	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
 	log "github.com/sirupsen/logrus"
+	"go.uber.org/ratelimit"
 	"gorm.io/gorm"
 )
 
@@ -830,7 +831,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 // It handles each the 'REVEAL_REQUEST' and 'OPEN_REQUEST' events by creating
 // and storing an appropriate Flow transaction in database to be later processed by a poller.
 // 'REVEALED' and 'OPENED' events are used to sync the state of a pack in database with onchain state.
-func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
+func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, db *gorm.DB, rateLimiter ratelimit.Limiter, cpc *CirculatingPackContract) error {
 	logger := log.WithFields(log.Fields{
 		"method": "UpdateCirculatingPack",
 		"cpcID":  cpc.ID,
@@ -869,20 +870,15 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 		wg.Add(1)
 
 		go func(ctx context.Context, dbx *gorm.DB, wg *sync.WaitGroup, cpc *CirculatingPackContract, evName string, begin uint64, end uint64) {
-
-			if err := dbx.Transaction(func(tx *gorm.DB) error {
-				handler := EventHandler{
-					db:         dbx,
-					flowClient: svc.flowClient,
-					eventLogger: logger.WithFields(log.Fields{
-						"eventName": evName,
-					}),
-				}
-				if err := handler.PollByEventName(ctx, wg, cpc, evName, begin, end); err != nil {
-					return err
-				}
-				return nil
-			}); err != nil {
+			handler := EventHandler{
+				db:         dbx,
+				flowClient: svc.flowClient,
+				eventLogger: logger.WithFields(log.Fields{
+					"eventName": evName,
+				}),
+			}
+			rateLimiter.Take()
+			if err := handler.PollByEventName(ctx, wg, cpc, evName, begin, end); err != nil {
 				logger.Warn(err)
 			}
 		}(ctx, db, &wg, cpc, evName, begin, end)

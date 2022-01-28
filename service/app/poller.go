@@ -50,12 +50,13 @@ func packContractEventsPoller(app *App) {
 	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
+	pollRateLimiter := ratelimit.New(app.cfg.TransactionSendRate)
 	for {
 		select {
 		case <-ticker.C:
 			start := time.Now()
 			log.Info("pollCirculatingPackContractEvents start")
-			logPollerRun("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app))
+			logPollerRun("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app, pollRateLimiter))
 			log.WithFields(log.Fields{
 				"elapsed": time.Since(start),
 			}).Info("pollCirculatingPackContractEvents end")
@@ -260,20 +261,22 @@ func handleComplete(ctx context.Context, app *App) error {
 	})
 }
 
-func pollCirculatingPackContractEvents(ctx context.Context, app *App) error {
+func pollCirculatingPackContractEvents(ctx context.Context, app *App, rateLimiter ratelimit.Limiter) error {
 
-	cc, err := listCirculatingPackContracts(app.db)
-	if err != nil {
-		return err
-	}
-
-	for _, c := range cc {
-		if err := app.service.UpdateCirculatingPackContract(ctx, app.db, &c); err != nil {
+	return app.db.Transaction(func(tx *gorm.DB) error {
+		cc, err := listCirculatingPackContracts(tx)
+		if err != nil {
 			return err
 		}
-	}
 
-	return nil
+		for _, c := range cc {
+			if err := app.service.UpdateCirculatingPackContract(ctx, tx, rateLimiter, &c); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 // handleSendableTransactions sends all transactions which are sendable (state is init or retry)
