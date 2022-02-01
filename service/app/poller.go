@@ -149,10 +149,19 @@ func listCirculatingPackContracts(db *gorm.DB) ([]CirculatingPackContract, error
 		Find(&list).Error
 }
 
-func getCirculatingPackContractBlockCursorByEventName(db *gorm.DB, eventName AddressLocation) (*CirculatingPackContractBlockCursor, error) {
+func getCirculatingPackContractBlockCursorByEventName(db *gorm.DB, eventName string) (*CirculatingPackContractBlockCursor, error) {
 	c := CirculatingPackContractBlockCursor{}
-	err := db.Where(&CirculatingPackContractBlockCursor{EventName: eventName.String()}).
+	err := db.Where(&CirculatingPackContractBlockCursor{EventName: eventName}).
 		First(&c).Error
+	return &c, err
+}
+
+func findOrCreateCirculatingPackContractBlockCursorByEventName(db *gorm.DB, eventName string, startAtBlock uint64) (*CirculatingPackContractBlockCursor, error) {
+	c := CirculatingPackContractBlockCursor{}
+	err := db.
+		Attrs(CirculatingPackContractBlockCursor{StartAtBlock: startAtBlock}).
+		FirstOrCreate(c, CirculatingPackContractBlockCursor{EventName: eventName}).Error
+
 	return &c, err
 }
 

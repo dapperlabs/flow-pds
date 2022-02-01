@@ -374,14 +374,6 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 		StartAtBlock: latestBlockHeader.Height - 1,
 	}
 
-	cpcCursor := CirculatingPackContractBlockCursor{
-		EventName: AddressLocation{
-			Name:    dist.PackTemplate.PackReference.Name,
-			Address: dist.PackTemplate.PackReference.Address,
-		}.String(),
-		StartAtBlock: latestBlockHeader.Height - 1,
-	}
-
 	// Try to find an existing one (CirculatingPackContract)
 	if existing, err := GetCirculatingPackContract(db, cpc.Name, cpc.Address); err != nil {
 		// Insert the newly initialized if not found
@@ -389,9 +381,6 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 			return err // rollback
 		}
 
-		if err := InsertCirculatingPackContractBlockCursor(db, &cpcCursor); err != nil {
-			return err // rollback
-		}
 	} else { // err == nil, existing found
 		if cpc.StartAtBlock < existing.StartAtBlock {
 			// Situation where a new cpc has lower blockheight (LastCheckedBlock) than an old one.
@@ -890,9 +879,10 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					}),
 				}
 
-				eventName := AddressLocation{Address: cpc.Address, Name: cpc.Name}
+				cpcCursor, err := findOrCreateCirculatingPackContractBlockCursorByEventName(tx, cpc.EventName(evName), cpc.StartAtBlock)
 
-				cpcCursor, err := getCirculatingPackContractBlockCursorByEventName(tx, eventName)
+				logger.Infof("🌴🌴🌴🌴🌴🌴🌴🌴🌴🌴🌴 cpcCursor => %+v err=>%s \n\n", cpcCursor, err)
+
 				if err != nil {
 					return err
 				}

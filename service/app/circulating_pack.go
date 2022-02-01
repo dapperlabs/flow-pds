@@ -42,7 +42,7 @@ type CirculatingPackContractBlockCursor struct {
 	gorm.Model
 
 	ID           uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
-	EventName    string    `gorm:"column:event_name"`
+	EventName    string    `gorm:"unique"`
 	StartAtBlock uint64    `gorm:"column:start_at_block"`
 }
 
