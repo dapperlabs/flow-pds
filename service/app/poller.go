@@ -159,6 +159,7 @@ func getCirculatingPackContractBlockCursorByEventName(db *gorm.DB, eventName str
 func findOrCreateCirculatingPackContractBlockCursorByEventName(db *gorm.DB, eventName string, startAtBlock uint64) (*CirculatingPackContractBlockCursor, error) {
 	c := CirculatingPackContractBlockCursor{}
 	err := db.
+		// if we need to insert a cursor for this `eventName`, set it's `StartAtBlock` by the supplied `startAtBlock` parameter
 		Attrs(CirculatingPackContractBlockCursor{StartAtBlock: startAtBlock}).
 		FirstOrCreate(&c, CirculatingPackContractBlockCursor{EventName: eventName}).Error
 

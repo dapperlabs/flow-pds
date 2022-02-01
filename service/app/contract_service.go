@@ -851,25 +851,12 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 		return err // rollback
 	}
 
-	begin := cpc.StartAtBlock + 1
-	end := min(latestBlockHeader.Height, begin+svc.cfg.MaxBlocksPerCheck)
-
-	logger = logger.WithFields(log.Fields{
-		"blockBegin": begin,
-		"blockEnd":   end,
-	})
-
-	if begin > end {
-		logger.Trace("No blocks to handle")
-		return nil // commit
-	}
-
 	wg := sync.WaitGroup{}
 	for _, eventName := range eventNames {
 		evName := eventName
 		wg.Add(1)
 
-		go func(ctx context.Context, dbx *gorm.DB, wg *sync.WaitGroup, cpc *CirculatingPackContract, evName string, begin uint64, end uint64) {
+		go func(ctx context.Context, dbx *gorm.DB, wg *sync.WaitGroup, cpc *CirculatingPackContract, evName string) {
 			if err := dbx.Transaction(func(tx *gorm.DB) error {
 				handler := EventHandler{
 					db:         tx,
@@ -879,7 +866,20 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					}),
 				}
 
-				cpcCursor, err := findOrCreateCirculatingPackContractBlockCursorByEventName(tx, cpc.EventName(evName), cpc.StartAtBlock)
+				cpcCursor, err := findOrCreateCirculatingPackContractBlockCursorByEventName(tx, cpc.EventName(evName), cpc.StartAtBlock+1)
+
+				begin := cpc.StartAtBlock + 1
+				end := min(latestBlockHeader.Height, begin+svc.cfg.MaxBlocksPerCheck)
+
+				logger = logger.WithFields(log.Fields{
+					"blockBegin": begin,
+					"blockEnd":   end,
+				})
+
+				if begin > end {
+					logger.Trace("No blocks to handle")
+					return nil // commit
+				}
 
 				if err != nil {
 					return err
@@ -893,17 +893,10 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 			}); err != nil {
 				logger.Warn(err)
 			}
-		}(ctx, db, &wg, cpc, evName, begin, end)
+		}(ctx, db, &wg, cpc, evName)
 	}
 
 	wg.Wait()
-
-	cpc.StartAtBlock = end
-
-	// Update the CirculatingPackContract in database
-	if err := UpdateCirculatingPackContract(db, cpc); err != nil {
-		return err // rollback
-	}
 
 	logger.Trace("Update circulating pack complete")
 
