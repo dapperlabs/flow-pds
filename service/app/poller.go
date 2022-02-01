@@ -160,7 +160,7 @@ func findOrCreateCirculatingPackContractBlockCursorByEventName(db *gorm.DB, even
 	c := CirculatingPackContractBlockCursor{}
 	err := db.
 		Attrs(CirculatingPackContractBlockCursor{StartAtBlock: startAtBlock}).
-		FirstOrCreate(c, CirculatingPackContractBlockCursor{EventName: eventName}).Error
+		FirstOrCreate(&c, CirculatingPackContractBlockCursor{EventName: eventName}).Error
 
 	return &c, err
 }

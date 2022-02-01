@@ -872,7 +872,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 		go func(ctx context.Context, dbx *gorm.DB, wg *sync.WaitGroup, cpc *CirculatingPackContract, evName string, begin uint64, end uint64) {
 			if err := dbx.Transaction(func(tx *gorm.DB) error {
 				handler := EventHandler{
-					db:         dbx,
+					db:         tx,
 					flowClient: svc.flowClient,
 					eventLogger: logger.WithFields(log.Fields{
 						"eventName": evName,
@@ -881,8 +881,6 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 
 				cpcCursor, err := findOrCreateCirculatingPackContractBlockCursorByEventName(tx, cpc.EventName(evName), cpc.StartAtBlock)
 
-				logger.Infof("🌴🌴🌴🌴🌴🌴🌴🌴🌴🌴🌴 cpcCursor => %+v err=>%s \n\n", cpcCursor, err)
-
 				if err != nil {
 					return err
 				}
@@ -890,6 +888,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 				if err := handler.PollByEventName(ctx, wg, cpc, cpcCursor, evName, begin, end); err != nil {
 					return err
 				}
+
 				return nil
 			}); err != nil {
 				logger.Warn(err)
