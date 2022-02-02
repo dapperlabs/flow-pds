@@ -858,32 +858,32 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 
 		go func(ctx context.Context, dbx *gorm.DB, wg *sync.WaitGroup, cpc *CirculatingPackContract, evName string) {
 			defer wg.Done()
+			evLogger := logger.WithFields(log.Fields{
+				"eventName": evName,
+			})
 			if err := dbx.Transaction(func(tx *gorm.DB) error {
 				handler := EventHandler{
-					db:         tx,
-					flowClient: svc.flowClient,
-					eventLogger: logger.WithFields(log.Fields{
-						"eventName": evName,
-					}),
+					db:          tx,
+					flowClient:  svc.flowClient,
+					eventLogger: evLogger,
 				}
 
 				cpcCursor, err := findOrCreateCirculatingPackContractBlockCursorByEventName(tx, cpc.EventName(evName), cpc.StartAtBlock+1)
+				if err != nil {
+					return err
+				}
 
 				begin := cpcCursor.StartAtBlock + 1
 				end := min(latestBlockHeader.Height, begin+svc.cfg.MaxBlocksPerCheck)
 
-				logger = logger.WithFields(log.Fields{
+				handler.eventLogger = handler.eventLogger.WithFields(log.Fields{
 					"blockBegin": begin,
 					"blockEnd":   end,
 				})
 
 				if begin > end {
-					logger.Info("No blocks to handle")
+					handler.eventLogger.Info("No blocks to handle")
 					return nil // commit
-				}
-
-				if err != nil {
-					return err
 				}
 
 				if err := handler.PollByEventName(ctx, wg, cpc, cpcCursor, evName, begin, end); err != nil {
@@ -892,7 +892,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 
 				return nil
 			}); err != nil {
-				logger.Warn(err)
+				evLogger.Warn("error on polling events err: %s", err)
 			}
 		}(ctx, db, &wg, cpc, evName)
 	}

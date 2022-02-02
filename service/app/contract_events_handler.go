@@ -208,7 +208,6 @@ func (ev *EventHandler) HandleOpenedEvent(ctx context.Context, event *flow.Event
 }
 
 func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup, cpc *CirculatingPackContract, cpcCursor *CirculatingPackContractBlockCursor, eventName string, begin uint64, end uint64) error {
-	defer wg.Done()
 
 	arr, err := ev.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 		Type:        cpc.EventName(eventName),
@@ -222,9 +221,9 @@ func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup,
 
 	for _, be := range arr {
 		for _, e := range be.Events {
-			eventLogger := ev.eventLogger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
+			ev.eventLogger = ev.eventLogger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
-			eventLogger.Debug("Handling event")
+			ev.eventLogger.Debug("Handling event")
 
 			evtValueMap := flow_helpers.EventValuesToMap(e)
 
@@ -252,21 +251,21 @@ func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup,
 				return fmt.Errorf("error retrieving distribution from db err=%w", err)
 			}
 
-			eventLogger = eventLogger.WithFields(log.Fields{
+			ev.eventLogger = ev.eventLogger.WithFields(log.Fields{
 				"distID":     distribution.ID,
 				"distFlowID": distribution.FlowID,
 				"packID":     pack.ID,
 				"packFlowID": pack.FlowID,
 			})
 
-			eventLogger.Info("handling event...")
+			ev.eventLogger.Info("handling event...")
 
 			if err := ev.HandleEvent(ctx, eventName, &e, pack, distribution); err != nil {
-				eventLogger.Warnf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error())
+				ev.eventLogger.Warnf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error())
 				continue
 			}
 
-			eventLogger.Trace("Handling event complete")
+			ev.eventLogger.Trace("Handling event complete")
 		}
 	}
 
@@ -276,6 +275,8 @@ func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup,
 	if err := UpdateCirculatingPackContractBlockCursor(ev.db, cpcCursor); err != nil {
 		return err // rollback
 	}
+
+	ev.eventLogger.Info("PollByEventName end")
 
 	return nil
 }
