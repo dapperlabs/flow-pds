@@ -868,7 +868,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 
 				cpcCursor, err := findOrCreateCirculatingPackContractBlockCursorByEventName(tx, cpc.EventName(evName), cpc.StartAtBlock+1)
 
-				begin := cpc.StartAtBlock + 1
+				begin := cpcCursor.StartAtBlock + 1
 				end := min(latestBlockHeader.Height, begin+svc.cfg.MaxBlocksPerCheck)
 
 				logger = logger.WithFields(log.Fields{
@@ -877,7 +877,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 				})
 
 				if begin > end {
-					logger.Trace("No blocks to handle")
+					logger.Info("No blocks to handle")
 					return nil // commit
 				}
 
