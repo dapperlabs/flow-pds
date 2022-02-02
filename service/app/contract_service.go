@@ -857,6 +857,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 		wg.Add(1)
 
 		go func(ctx context.Context, dbx *gorm.DB, wg *sync.WaitGroup, cpc *CirculatingPackContract, evName string) {
+			defer wg.Done()
 			if err := dbx.Transaction(func(tx *gorm.DB) error {
 				handler := EventHandler{
 					db:         tx,
