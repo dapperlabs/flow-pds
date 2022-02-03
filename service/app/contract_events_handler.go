@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -261,8 +262,12 @@ func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup,
 			ev.eventLogger.Info("handling event...")
 
 			if err := ev.HandleEvent(ctx, eventName, &e, pack, distribution); err != nil {
-				ev.eventLogger.Warnf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error())
-				continue
+				if errors.Is(err, &common.InvalidPackStateError{}) {
+					ev.eventLogger.Warnf("InvalidPackState error, continuing. err:%s", err.Error())
+					continue
+				}
+				ev.eventLogger.Warnf("InvalidPackState error, breaking loop. err:%s", err.Error())
+				return err
 			}
 
 			ev.eventLogger.Trace("Handling event complete")

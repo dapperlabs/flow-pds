@@ -59,7 +59,10 @@ func (p *Pack) Hash() []byte {
 // Seal should set the FlowID of the pack and set it as sealed
 func (p *Pack) Seal(id common.FlowID) error {
 	if p.State != common.PackStateInit {
-		return fmt.Errorf("pack in unexpected state: %s", p.State)
+		return &common.InvalidPackStateError{
+			Expected: []common.PackState{common.PackStateInit},
+			Actual:   p.State,
+		}
 	}
 
 	if p.FlowID.Valid {
@@ -76,7 +79,10 @@ func (p *Pack) Seal(id common.FlowID) error {
 // given the previous state was correct
 func (p *Pack) RevealRequestHandled() error {
 	if p.State != common.PackStateSealed {
-		return fmt.Errorf("pack in unexpected state: %s", p.State)
+		return &common.InvalidPackStateError{
+			Expected: []common.PackState{common.PackStateSealed},
+			Actual:   p.State,
+		}
 	}
 
 	p.State = common.PackStateRevealRequestHandled
@@ -88,7 +94,10 @@ func (p *Pack) RevealRequestHandled() error {
 // given the previous state was correct
 func (p *Pack) Reveal() error {
 	if p.State != common.PackStateRevealRequestHandled {
-		return fmt.Errorf("pack in unexpected state: %s", p.State)
+		return &common.InvalidPackStateError{
+			Expected: []common.PackState{common.PackStateRevealRequestHandled},
+			Actual:   p.State,
+		}
 	}
 
 	p.State = common.PackStateRevealed
@@ -100,7 +109,10 @@ func (p *Pack) Reveal() error {
 // given the previous state was correct
 func (p *Pack) OpenRequestHandled() error {
 	if p.State != common.PackStateRevealed {
-		return fmt.Errorf("pack in unexpected state: %s", p.State)
+		return &common.InvalidPackStateError{
+			Expected: []common.PackState{common.PackStateRevealed},
+			Actual:   p.State,
+		}
 	}
 
 	p.State = common.PackStateOpenRequestHandled
@@ -112,7 +124,10 @@ func (p *Pack) OpenRequestHandled() error {
 // given the previous state was correct
 func (p *Pack) Open() error {
 	if p.State != common.PackStateOpenRequestHandled && p.State != common.PackStateRevealed {
-		return fmt.Errorf("pack in unexpected state: %s", p.State)
+		return &common.InvalidPackStateError{
+			Expected: []common.PackState{common.PackStateOpenRequestHandled, common.PackStateRevealed},
+			Actual:   p.State,
+		}
 	}
 
 	p.State = common.PackStateOpened
