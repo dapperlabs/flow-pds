@@ -266,7 +266,7 @@ func (ev *EventHandler) PollByEventName(ctx context.Context, wg *sync.WaitGroup,
 					ev.eventLogger.Warnf("InvalidPackState error, continuing. err:%s", err.Error())
 					continue
 				}
-				ev.eventLogger.Warnf("InvalidPackState error, breaking loop. err:%s", err.Error())
+				ev.eventLogger.Warnf("InvalidPackState error, breaking . err:%s", err.Error())
 				return err
 			}
 

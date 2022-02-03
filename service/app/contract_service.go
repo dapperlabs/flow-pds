@@ -892,7 +892,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 
 				return nil
 			}); err != nil {
-				evLogger.Warn("error on polling events err: %s", err)
+				evLogger.Warnf("error on polling events err: %s", err)
 			}
 		}(ctx, db, &wg, cpc, evName)
 	}
