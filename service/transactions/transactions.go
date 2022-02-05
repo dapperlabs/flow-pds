@@ -91,7 +91,7 @@ func (t *StorableTransaction) ArgumentsAsCadence() ([]cadence.Value, error) {
 }
 
 // Prepare parses the transaction into a sendable state.
-func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account, gasLimit uint64) (*flow.Transaction, flow_helpers.UnlockKeyFunc, error) {
+func (t *StorableTransaction) Prepare(ctx context.Context, db *gorm.DB, flowClient *client.Client, account *flow_helpers.Account, gasLimit uint64) (*flow.Transaction, *AccountKey, error) {
 	args, err := t.ArgumentsAsCadence()
 	if err != nil {
 		return nil, nil, err
@@ -114,12 +114,12 @@ func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Cl
 
 	tx.SetReferenceBlockID(latestBlockHeader.ID)
 
-	unlock, err := flow_helpers.SignProposeAndPayAs(ctx, flowClient, account, tx)
+	acctKey, err := flow_helpers.SignWithDBProposeAndPayAs(ctx, db, flowClient, account, tx)
 	if err != nil {
-		return nil, unlock, err
+		return nil, nil, err
 	}
 
-	return tx, unlock, nil
+	return tx, acctKey, nil
 }
 
 // HandleResult checks the results of a transaction onchain and updates the

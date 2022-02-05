@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/flow-hydraulics/flow-pds/service/transactions"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"math/rand"
 	"sync"
 	"time"
@@ -115,6 +119,50 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 	k.SequenceNumber = getSequenceNumber(a.Address, k)
 
 	return k, unlock, nil
+}
+
+func (a *Account) GetProposalKeyFromDB(ctx context.Context, db *gorm.DB, flowClient *client.Client) (*transactions.AccountKey, error) {
+	account, err := flowClient.GetAccount(ctx, a.Address)
+	if err != nil {
+		return nil, fmt.Errorf("error in flow_helpers.Account.GetProposalKey: %w", err)
+	}
+
+	acctKey, err := GetAndLockAvailableKey(db)
+	if err != nil {
+		return nil, fmt.Errorf("error in flow_helpers.Account.GetProposalKey: %w", err)
+	}
+
+	k := account.Keys[acctKey.KeyIndex]
+
+	acctKey.FlowKey = k
+
+	k.SequenceNumber = account.Keys[acctKey.KeyIndex].SequenceNumber
+
+	return acctKey, nil
+}
+
+func GetAndLockAvailableKey(db *gorm.DB) (*transactions.AccountKey, error) {
+	acctKey := transactions.AccountKey{}
+	err := db.
+		Where(map[string]interface{}{"state": transactions.KeyStateAvailable}).
+		Clauses(clause.Locking{Strength: "UPDATE SKIP LOCKED"}).
+		First(&acctKey).Error
+
+	return &acctKey, err
+}
+
+func LockKey(db *gorm.DB, ID uuid.UUID) error {
+	return db.Model(&transactions.AccountKey{}).
+		Where("id = ?", ID).
+		Update("state", transactions.KeyStateInUse).
+		Error
+}
+
+func UnlockKey(db *gorm.DB, ID uuid.UUID) error {
+	return db.Model(&transactions.AccountKey{}).
+		Where("id = ?", ID).
+		Update("state", transactions.KeyStateAvailable).
+		Error
 }
 
 func (a Account) GetSigner() (crypto.Signer, error) {

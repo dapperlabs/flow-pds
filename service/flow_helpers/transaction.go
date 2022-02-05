@@ -3,6 +3,8 @@ package flow_helpers
 import (
 	"context"
 	"fmt"
+	"github.com/flow-hydraulics/flow-pds/service/transactions"
+	"gorm.io/gorm"
 	"time"
 
 	"github.com/onflow/flow-go-sdk"
@@ -31,6 +33,31 @@ func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account
 	}
 
 	return unlock, nil
+}
+
+func SignWithDBProposeAndPayAs(ctx context.Context, db *gorm.DB, flowClient *client.Client, account *Account, tx *flow.Transaction) (*transactions.AccountKey, error) {
+
+	signer, err := account.GetSigner()
+	if err != nil {
+		return nil, err
+	}
+
+	acctKey, err := account.GetProposalKeyFromDB(ctx, db, flowClient)
+
+	if err != nil {
+		return nil, err
+	}
+
+	tx.
+		SetProposalKey(account.Address, acctKey.FlowKey.Index, acctKey.FlowKey.SequenceNumber).
+		SetPayer(account.Address).
+		AddAuthorizer(account.Address)
+
+	if err := tx.SignEnvelope(account.Address, acctKey.FlowKey.Index, signer); err != nil {
+		return nil, err
+	}
+
+	return acctKey, nil
 }
 
 // WaitForSeal blocks until

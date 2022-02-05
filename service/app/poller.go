@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
+	"github.com/onflow/flow-go-sdk"
 	"sync"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
-	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/ratelimit"
@@ -321,14 +322,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 }
 
 func processSendableTransaction(ctx context.Context, app *App, logger *log.Entry, dbtx *gorm.DB, t *transactions.StorableTransaction) error {
-	tx, unlockKey, err := t.Prepare(ctx, app.service.flowClient, app.service.account, app.service.cfg.TransactionGasLimit)
-
-	defer func() {
-		// Make sure to unlock if we had an error to prevent deadlocks
-		if err != nil {
-			unlockKey()
-		}
-	}()
+	tx, acctKey, err := t.Prepare(ctx, dbtx, app.service.flowClient, app.service.account, app.service.cfg.TransactionGasLimit)
 
 	if err != nil {
 		return fmt.Errorf("error while preparing transaction: %w", err)
@@ -368,12 +362,17 @@ func processSendableTransaction(ctx context.Context, app *App, logger *log.Entry
 
 	// Wait for the transaction to finalize (be included in a block, not yet sealed)
 	// in a goroutine to unlock the used key
-	go func(ctx context.Context, app *App, unlockKey flow_helpers.UnlockKeyFunc, logger *log.Entry) {
-		defer unlockKey()
-		if _, err := t.WaitForFinalize(ctx, app.service.flowClient); err != nil {
+	go func(ctx context.Context, app *App, logger *log.Entry) {
+		defer func() {
+			if err := flow_helpers.UnlockKey(dbtx, acctKey.ID); err != nil {
+				logger.Errorf("could not unlock key: %+v. err: %s", acctKey, err)
+			}
+		}()
+
+		if _, err := flow_helpers.WaitForSeal(ctx, app.service.flowClient, flow.HexToID(t.TransactionID), time.Minute*10); err != nil {
 			logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while waiting for transaction to finalize")
 		}
-	}(context.Background(), app, unlockKey, logger)
+	}(context.Background(), app, logger)
 
 	return nil
 }
