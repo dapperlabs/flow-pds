@@ -148,25 +148,35 @@ func (a *Account) AvailableKeys() int {
 	return numAvailableKeys
 }
 
+var s *cloudkms.Signer
+var c *cloudkms.Client
+var k cloudkms.Key
+var once sync.Once
+
 func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer, error) {
 	ctx := context.Background()
-	c, err := cloudkms.NewClient(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	k, err := cloudkms.KeyFromResourceID(resourceId)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 
-	s, err := c.SignerForKey(ctx, address, k)
+	once.Do(func() {
+		c, err = cloudkms.NewClient(ctx)
+		if err != nil {
+			return
+		}
 
-	if err != nil {
-		return nil, err
-	}
+		k, err = cloudkms.KeyFromResourceID(resourceId)
+		if err != nil {
+			return
+		}
 
-	return s, nil
+		s, err = c.SignerForKey(ctx, address, k)
+
+		if err != nil {
+			return
+		}
+	})
+
+	return s, err
 }
 
 // getSequenceNumber, is a hack around the fact that GetAccount on Flow Client returns
