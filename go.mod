@@ -10,7 +10,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.4.0
 	github.com/onflow/cadence v0.24.4
-	github.com/onflow/flow-go v0.26.3
+	github.com/onflow/flow-go v0.26.9
 	github.com/onflow/flow-go-sdk v0.26.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
