@@ -9,9 +9,9 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.4.0
-	github.com/onflow/cadence v0.24.3
+	github.com/onflow/cadence v0.24.4
 	github.com/onflow/flow-go v0.26.3
-	github.com/onflow/flow-go-sdk v0.26.2
+	github.com/onflow/flow-go-sdk v0.26.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
 	github.com/trailofbits/go-mutexasserts v0.0.0-20200708152505-19999e7d3cef
