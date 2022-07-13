@@ -1,6 +1,8 @@
 package http
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"net/http/pprof"
 
@@ -37,6 +39,17 @@ func NewRouter(app *app.App) http.Handler {
 	rv.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
 	rv.Handle("/debug/pprof/heap", pprof.Handler("heap"))
 	rv.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+
+	// Prometheus metrics
+	metricsHandler := promhttp.InstrumentMetricHandler(
+		prometheus.DefaultRegisterer,
+		promhttp.HandlerFor(
+			prometheus.DefaultGatherer,
+			promhttp.HandlerOpts{
+				ErrorLog: requestLogger,
+			}),
+	)
+	r.Handle("/metrics", metricsHandler)
 
 	// Use middleware
 	h := UseCors(r)
