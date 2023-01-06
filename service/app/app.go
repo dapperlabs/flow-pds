@@ -133,3 +133,7 @@ func (app *App) GetPack(ctx context.Context, id uuid.UUID) (*Pack, error) {
 	}
 	return pack, nil
 }
+
+func (app *App) InsertPack(ctx context.Context, p *Pack) error {
+	return InsertPack(app.db, p)
+}

@@ -147,6 +147,10 @@ func InsertSettlement(db *gorm.DB, d *Settlement) error {
 	return db.Omit(clause.Associations).Create(d).Error
 }
 
+func InsertPack(db *gorm.DB, p *Pack) error {
+	return db.Omit(clause.Associations).Create(p).Error
+}
+
 func InsertSettlementCollectibles(db *gorm.DB, cc []SettlementCollectible, batchSize int) error {
 	return db.Omit(clause.Associations).CreateInBatches(cc, batchSize).Error
 }

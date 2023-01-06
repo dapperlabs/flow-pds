@@ -149,9 +149,6 @@ func HandleHealthReady() http.HandlerFunc {
 
 func HandleCreatePacks(logger *log.Logger, a *app.App) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		/*
-			func (dist *Distribution) Resolve() error {
-		*/
 		// Check body is not empty
 		if err := checkNonEmptyBody(r); err != nil {
 			handleError(rw, logger, err)
@@ -166,20 +163,40 @@ func HandleCreatePacks(logger *log.Logger, a *app.App) http.HandlerFunc {
 			return
 		}
 
-		pack := app.Pack{
-			DistributionID: reqCreatePack.DistributionID,
-			ContractReference: app.AddressLocation{
-				Name:    reqCreatePack.PackReference.Name,
-				Address: reqCreatePack.PackReference.Address,
-			},
-			State:          common.PackStateInit,
-			Salt:           nil,
-			CommitmentHash: nil,
-			Collectibles:   nil,
+		addressLocation := app.AddressLocation{
+			Name:    reqCreatePack.PackReference.Name,
+			Address: reqCreatePack.PackReference.Address,
 		}
 
-		fmt.Printf("p: %+v", pack)
+		var collectibles []app.Collectible
+
+		for _, flowID := range reqCreatePack.NFTFlowIDs {
+			collectibles = append(collectibles, app.Collectible{
+				ContractReference: addressLocation,
+				FlowID:            flowID,
+			})
+		}
+
+		pack := app.Pack{
+			DistributionID:    reqCreatePack.DistributionID,
+			ContractReference: addressLocation,
+			State:             common.PackStateInit,
+			Collectibles:      collectibles,
+		}
+
+		err := pack.SetCommitmentHash()
+		if err != nil {
+			handleError(rw, logger, fmt.Errorf("error setting commitment hash: %w", err))
+			return
+		}
+
+		err = a.InsertPack(r.Context(), &pack)
+		if err != nil {
+			handleError(rw, logger, fmt.Errorf("error inserting pack: %w", err))
+			return
+		}
 
 		rw.WriteHeader(http.StatusOK)
+		return
 	}
 }
