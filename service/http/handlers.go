@@ -195,10 +195,12 @@ func HandleCreatePacks(logger *log.Logger, a *app.App) http.HandlerFunc {
 			Collectibles:      collectibles,
 		}
 
-		err = pack.SetCommitmentHash()
-		if err != nil {
-			handleError(rw, logger, fmt.Errorf("error setting commitment hash: %w", err))
-			return
+		if reqCreatePack.CommitmentHash == nil {
+			err = pack.SetCommitmentHash()
+			if err != nil {
+				handleError(rw, logger, fmt.Errorf("error setting commitment hash: %w", err))
+				return
+			}
 		}
 
 		err = a.InsertPack(r.Context(), &pack)

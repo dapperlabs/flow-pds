@@ -33,7 +33,7 @@ type ReqCreatePack struct {
 	*/
 	DistributionID uuid.UUID         `json:"distID"`
 	NFTFlowIDs     common.FlowIDList `json:"nftFlowIds"`
-	CommitmentHash string            `json:"commitmentHash"`
+	CommitmentHash *string           `json:"commitmentHash"`
 	PackReference  AddressLocation   `json:"packReference"`
 }
 
