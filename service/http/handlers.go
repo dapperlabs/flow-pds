@@ -2,10 +2,12 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
+	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
@@ -141,6 +143,43 @@ func HandleAbortDistribution(logger *log.Logger, app *app.App) http.HandlerFunc 
 
 func HandleHealthReady() http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+	}
+}
+
+func HandleCreatePacks(logger *log.Logger, a *app.App) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		/*
+			func (dist *Distribution) Resolve() error {
+		*/
+		// Check body is not empty
+		if err := checkNonEmptyBody(r); err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		var reqCreatePack ReqCreatePack
+
+		// Decode JSON
+		if err := json.NewDecoder(r.Body).Decode(&reqCreatePack); err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		pack := app.Pack{
+			DistributionID: reqCreatePack.DistributionID,
+			ContractReference: app.AddressLocation{
+				Name:    reqCreatePack.PackReference.Name,
+				Address: reqCreatePack.PackReference.Address,
+			},
+			State:          common.PackStateInit,
+			Salt:           nil,
+			CommitmentHash: nil,
+			Collectibles:   nil,
+		}
+
+		fmt.Printf("p: %+v", pack)
+
 		rw.WriteHeader(http.StatusOK)
 	}
 }

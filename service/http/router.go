@@ -26,6 +26,9 @@ func NewRouter(app *app.App) http.Handler {
 	rv.HandleFunc("/distributions/{id}", HandleGetDistribution(requestLogger, app)).Methods(http.MethodGet)
 	rv.HandleFunc("/distributions/{id}/abort", HandleAbortDistribution(requestLogger, app)).Methods(http.MethodPost)
 
+	// Predefined packs, where we want to create them with specific NFT Ids
+	rv.HandleFunc("/packs", HandleCreatePacks(requestLogger, app)).Methods(http.MethodPost)
+
 	// Add the pprof routes
 	rv.HandleFunc("/debug/pprof/", pprof.Index)
 	rv.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)

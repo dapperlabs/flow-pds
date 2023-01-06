@@ -18,6 +18,25 @@ type ReqCreateDistribution struct {
 	PackTemplate ReqPackTemplate    `json:"packTemplate"`
 }
 
+type ReqCreatePack struct {
+	/*
+		{
+			distId: // long lived distribution
+			nft_flow_ids: []string // nft_flow_id
+			hash: // commitHash
+			issuer // ie: NBA PackNFT address
+			packReference: {
+				"name": "PackNFT",
+				"address": "4dfd62c88d1b6462",
+			}
+		}
+	*/
+	DistributionID uuid.UUID         `json:"distID"`
+	NFTFlowIDs     common.FlowIDList `json:"nftFlowIds"`
+	CommitmentHash string            `json:"commitmentHash"`
+	PackReference  AddressLocation   `json:"packReference"`
+}
+
 type ReqPackTemplate struct {
 	PackReference AddressLocation `json:"packReference"`
 	PackCount     uint            `json:"packCount"`
