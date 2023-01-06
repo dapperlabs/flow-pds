@@ -163,6 +163,17 @@ func HandleCreatePacks(logger *log.Logger, a *app.App) http.HandlerFunc {
 			return
 		}
 
+		distributionState, err := a.GetDistributionState(r.Context(), reqCreatePack.DistributionID)
+		if err != nil {
+			handleError(rw, logger, fmt.Errorf("error retrieving distribution with id %s :%w", reqCreatePack.DistributionID, err))
+			return
+		}
+
+		if distributionState != common.DistributionStateMinting {
+			handleError(rw, logger, fmt.Errorf("distribution is in invalid state with id %s :%w", distributionState, err))
+			return
+		}
+
 		addressLocation := app.AddressLocation{
 			Name:    reqCreatePack.PackReference.Name,
 			Address: reqCreatePack.PackReference.Address,
@@ -184,7 +195,7 @@ func HandleCreatePacks(logger *log.Logger, a *app.App) http.HandlerFunc {
 			Collectibles:      collectibles,
 		}
 
-		err := pack.SetCommitmentHash()
+		err = pack.SetCommitmentHash()
 		if err != nil {
 			handleError(rw, logger, fmt.Errorf("error setting commitment hash: %w", err))
 			return
