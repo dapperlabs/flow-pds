@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
@@ -19,21 +20,10 @@ type ReqCreateDistribution struct {
 }
 
 type ReqCreatePack struct {
-	/*
-		{
-			distId: // long lived distribution
-			nft_flow_ids: []string // nft_flow_id
-			hash: // commitHash
-			issuer // ie: NBA PackNFT address
-			packReference: {
-				"name": "PackNFT",
-				"address": "4dfd62c88d1b6462",
-			}
-		}
-	*/
 	DistributionID uuid.UUID         `json:"distID"`
 	NFTFlowIDs     common.FlowIDList `json:"nftFlowIds"`
 	CommitmentHash *string           `json:"commitmentHash"`
+	Salt           *string           `json:"salt"`
 	PackReference  AddressLocation   `json:"packReference"`
 }
 
@@ -167,4 +157,16 @@ func (pt ReqPackTemplate) ToApp() app.PackTemplate {
 		PackCount:     pt.PackCount,
 		Buckets:       buckets,
 	}
+}
+
+func (cp ReqCreatePack) Validate() error {
+	if cp.CommitmentHash == nil && len(cp.NFTFlowIDs) < 1 {
+		return fmt.Errorf("must supply commitment hash or nft_flow_ids")
+	}
+
+	if cp.CommitmentHash != nil && cp.Salt == nil {
+		return fmt.Errorf("must supply salt along with commitment hash")
+	}
+
+	return nil
 }

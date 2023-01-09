@@ -147,6 +147,12 @@ func HandleHealthReady() http.HandlerFunc {
 	}
 }
 
+/*
+	HandleCreatePacks allows the creation of packs with pre-existing content.
+	It assumes the existence of a long-running distribution (ie: MINTING status).
+	It requires either the nft_flow_ids _or_ commitmentHash to be sent as part of the request. If the nft_flow_ids are
+	sent, this endpoint will calculate the commitment hash
+*/
 func HandleCreatePacks(logger *log.Logger, a *app.App) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		// Check body is not empty
@@ -159,6 +165,11 @@ func HandleCreatePacks(logger *log.Logger, a *app.App) http.HandlerFunc {
 
 		// Decode JSON
 		if err := json.NewDecoder(r.Body).Decode(&reqCreatePack); err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		if err := reqCreatePack.Validate(); err != nil {
 			handleError(rw, logger, err)
 			return
 		}
@@ -201,6 +212,8 @@ func HandleCreatePacks(logger *log.Logger, a *app.App) http.HandlerFunc {
 				handleError(rw, logger, fmt.Errorf("error setting commitment hash: %w", err))
 				return
 			}
+		} else {
+			pack.CommitmentHash = []byte(*reqCreatePack.CommitmentHash)
 		}
 
 		err = a.InsertPack(r.Context(), &pack)
