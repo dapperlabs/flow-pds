@@ -2,7 +2,7 @@ package flow_helpers
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 
 	"text/template"
 
@@ -20,7 +20,7 @@ type CadenceTemplateVars struct {
 }
 
 func ParseCadenceTemplate(templatePath string, vars *CadenceTemplateVars) ([]byte, error) {
-	fb, err := ioutil.ReadFile(templatePath)
+	fb, err := os.ReadFile(templatePath)
 	if err != nil {
 		panic(err)
 	}

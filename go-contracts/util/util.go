@@ -2,7 +2,6 @@ package util
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"testing"
@@ -46,7 +45,7 @@ type TestEvent struct {
 var addresses Addresses
 
 func ParseCadenceTemplate(templatePath string) []byte {
-	fb, err := ioutil.ReadFile(templatePath)
+	fb, err := os.ReadFile(templatePath)
 	if err != nil {
 		panic(err)
 	}
@@ -151,7 +150,7 @@ func GetAccountAddr(g *overflow.Overflow, name string) string {
 }
 
 func ReadCadenceCode(ContractPath string) []byte {
-	b, err := ioutil.ReadFile(ContractPath)
+	b, err := os.ReadFile(ContractPath)
 	if err != nil {
 		panic(err)
 	}
