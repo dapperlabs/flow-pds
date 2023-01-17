@@ -123,15 +123,6 @@ func (svc *ContractService) UpdateDistributionComplete(ctx context.Context, db *
 
 	logger.Trace("Update distribution complete")
 
-	minting, err := GetDistributionMinting(db, dist.ID)
-	if err != nil {
-		return err // rollback
-	}
-
-	if !minting.IsComplete() {
-		// Minting is not yet complete. Return early
-		return nil
-	}
 	// Distribution is now complete
 	logger.Info("Minting complete")
 

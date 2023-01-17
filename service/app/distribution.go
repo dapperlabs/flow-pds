@@ -185,7 +185,7 @@ func (dist *Distribution) SetIdle() error {
 
 // SetComplete sets the status to "complete" if preceding state was valid
 func (dist *Distribution) SetComplete() error {
-	return dist.SetState(common.DistributionStateComplete, common.DistributionStateMinting)
+	return dist.SetState(common.DistributionStateComplete, common.DistributionStateIdle)
 }
 
 // SetInvalid sets the status to "invalid" if preceding state was valid
