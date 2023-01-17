@@ -832,6 +832,23 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 			eventLogger.Trace("Handling event complete")
 		}
 	}
+
+	if minting.IsComplete() {
+		// Initial minting is now complete
+
+		// Make sure the distribution is in correct state
+		if err := dist.SetIdle(); err != nil {
+			return err // rollback
+		}
+
+		// Update the distribution in database
+		if err := UpdateDistribution(db, dist); err != nil {
+			return err // rollback
+		}
+
+		logger.Info("Minting complete. Distribution set to idle")
+	}
+
 	minting.StartAtBlock = end
 
 	// Update the minting status in database

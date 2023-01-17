@@ -178,6 +178,11 @@ func (dist *Distribution) SetMinting() error {
 	return dist.SetState(common.DistributionStateMinting, common.DistributionStateSettled)
 }
 
+// SetIdle sets the status to "idle" if preceding state was valid
+func (dist *Distribution) SetIdle() error {
+	return dist.SetState(common.DistributionStateIdle, common.DistributionStateComplete)
+}
+
 // SetComplete sets the status to "complete" if preceding state was valid
 func (dist *Distribution) SetComplete() error {
 	return dist.SetState(common.DistributionStateComplete, common.DistributionStateMinting)
