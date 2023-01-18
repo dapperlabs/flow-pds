@@ -12,7 +12,6 @@ const (
 	DistributionStateSettling DistributionState = "settling"
 	DistributionStateSettled  DistributionState = "settled"
 	DistributionStateMinting  DistributionState = "minting"
-	DistributionStateIdle     DistributionState = "idle"
 	DistributionStateComplete DistributionState = "complete"
 )
 

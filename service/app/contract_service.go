@@ -114,26 +114,17 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 	return nil
 }
 
-func (svc *ContractService) UpdateDistributionComplete(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+func (svc *ContractService) UpdateDistributionCompleteOnChain(ctx context.Context, db *gorm.DB, dist *Distribution) error {
 	logger := log.WithFields(log.Fields{
-		"method":     "UpdateDistributionComplete",
+		"method":     "UpdateDistributionCompleteOnChain",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
 	})
 
 	logger.Trace("Update distribution complete")
 
-	// Distribution is now complete
-	logger.Info("Minting complete")
-
-	// Make sure the distribution is in correct state
-	if err := dist.SetComplete(); err != nil {
-		return err // rollback
-	}
-
-	// Update the distribution in database
-	if err := UpdateDistribution(db, dist); err != nil {
-		return err // rollback
+	if !dist.IsComplete() {
+		return fmt.Errorf("distribution can not be set to '%s' from '%s'", common.DistributionStateComplete, dist.State)
 	}
 
 	// Update distribution state onchain
@@ -828,7 +819,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 		// Initial minting is now complete
 
 		// Make sure the distribution is in correct state
-		if err := dist.SetIdle(); err != nil {
+		if err := dist.SetComplete(); err != nil {
 			return err // rollback
 		}
 
@@ -837,7 +828,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 			return err // rollback
 		}
 
-		logger.Info("Minting complete. Distribution set to idle")
+		logger.Info("Minting complete. Distribution set to complete")
 	}
 
 	minting.StartAtBlock = end

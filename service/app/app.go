@@ -90,7 +90,7 @@ func (app *App) UpdateDistributionComplete(ctx context.Context, id uuid.UUID) er
 			return err
 		}
 
-		return app.service.UpdateDistributionComplete(ctx, app.db, distribution)
+		return app.service.UpdateDistributionCompleteOnChain(ctx, app.db, distribution)
 	})
 }
 
