@@ -816,9 +816,9 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 	}
 
 	if minting.IsComplete() {
-		// Initial minting is now complete
+		// Distribution is now complete
 
-		// Make sure the distribution is in correct state
+		// TODO: consider updating the distribution separately
 		if err := dist.SetComplete(); err != nil {
 			return err // rollback
 		}
@@ -828,7 +828,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 			return err // rollback
 		}
 
-		logger.Info("Minting complete. Distribution set to complete")
+		logger.Info("Minting complete")
 	}
 
 	minting.StartAtBlock = end
@@ -837,8 +837,6 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 	if err := UpdateMinting(db, minting); err != nil {
 		return err // rollback
 	}
-
-	logger.Trace("Update minting status complete")
 
 	return nil // commit
 }
