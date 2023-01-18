@@ -392,6 +392,10 @@ func TestE2E(t *testing.T) {
 	t.Logf("Owner collectible NFTs before: %s\n", ownerCollectibleNFTsBefore.String())
 	t.Logf("Owner collectible NFTs after:  %s\n", ownerCollectibleNFTsAfter.String())
 
+	if err := a.UpdateDistributionComplete(context.Background(), distribution.ID); err != nil {
+		t.Fatal(err)
+	}
+
 	distStateScript := "./cadence-scripts/pds/get_dist_state.cdc"
 	distStateCode := util.ParseCadenceTemplate(distStateScript)
 	distStateR, err := g.Script(string(distStateCode)).
