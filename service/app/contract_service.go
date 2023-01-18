@@ -114,6 +114,9 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 	return nil
 }
 
+// UpdateDistributionCompleteOnChain updates the distribution state on-chain to `complete`.
+// It validates that the distribution state is "complete" in the db,
+// which is updated by the poller in handleMinting (minting state -> complete state) when minting is complete
 func (svc *ContractService) UpdateDistributionCompleteOnChain(ctx context.Context, db *gorm.DB, dist *Distribution) error {
 	logger := log.WithFields(log.Fields{
 		"method":     "UpdateDistributionCompleteOnChain",
